@@ -2,7 +2,7 @@ import customtkinter
 from CTkMenuBar import *
 from tkinter import filedialog
 from utils import file_types
-from customtkinter import CTk, CTkTextbox, CTkLabel, CTkFrame, StringVar, BOTH, BOTTOM, W, X, E, RIGHT, LEFT
+from customtkinter import CTk, CTkTextbox, CTkLabel, CTkFrame, CTkButton, StringVar, BOTH, BOTTOM, X, RIGHT, LEFT
 
 # required functions
 def clear_code_area() -> None:
@@ -47,10 +47,10 @@ window.geometry("1200x720")
 window.resizable(width=True, height=True)
 
 # special variables
-status_var = StringVar()
+status_var:StringVar = StringVar()
 status_var.set("Ready!")
 
-language_var = StringVar()
+language_var:StringVar = StringVar()
 language_var.set("Text File")
 
 # user interface widgets
@@ -58,9 +58,9 @@ language_var.set("Text File")
 # menu bar
 menu = CTkMenuBar(master=window)
 
-file_menu = menu.add_cascade("File")
-view_menu = menu.add_cascade("View")
-about_menu = menu.add_cascade("About")
+file_menu:CTkButton = menu.add_cascade("File")
+view_menu:CTkButton = menu.add_cascade("View")
+about_menu:CTkButton = menu.add_cascade("About")
 
 
 # file menu option
@@ -77,7 +77,7 @@ file_dropdown.add_option(option="Exit", command=lambda : window.destroy())
 
 # view menu option
 view_dropdown:CustomDropdownMenu = CustomDropdownMenu(widget=view_menu)
-appearance_submenu = view_dropdown.add_submenu("Appearance Mode")
+appearance_submenu:CustomDropdownMenu = view_dropdown.add_submenu("Appearance Mode")
 appearance_submenu.add_option("LIGHT", command=lambda:change_appearance_mode("Light"))
 appearance_submenu.add_option("DARK", command=lambda:change_appearance_mode("Dark"))
 appearance_submenu.add_option("SYSTEM", command=lambda:change_appearance_mode("System"))
@@ -87,15 +87,15 @@ code_area: CTkTextbox = CTkTextbox(window, font=("Consolas", 25))
 code_area.pack(fill=BOTH, expand=True)
 
 # Now create the status bar
-status_bar = CTkFrame(window, height=25)
+status_bar:CTkFrame = CTkFrame(window, height=25)
 status_bar.pack(side=BOTTOM, fill=X)
 
 # Left side label (Status)
-status_label = CTkLabel(status_bar, textvariable=status_var, anchor="w")
+status_label:CTkLabel = CTkLabel(status_bar, textvariable=status_var, anchor="w")
 status_label.pack(side=LEFT, padx=10)
 
 # Right side label (Language)
-language_label = CTkLabel(status_bar, textvariable=language_var, anchor="e")
+language_label:CTkLabel = CTkLabel(status_bar, textvariable=language_var, anchor="e")
 language_label.pack(side=RIGHT, padx=10)
 
 
