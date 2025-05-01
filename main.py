@@ -1,6 +1,7 @@
 import os
 import tkinter.ttk as ttk
 from tkinter import filedialog, Y
+from typing import Final
 
 import customtkinter
 from CTkMenuBar import CTkMenuBar, CustomDropdownMenu
@@ -17,11 +18,16 @@ from customtkinter import (
     X,
     RIGHT,
     LEFT,
-    TOP,
     CTkToplevel, CTkRadioButton, CTkEntry
 )
 
 from utils import file_types, check_file_type, create_project_files
+
+
+# APPLICATION DETAILS
+APP_NAME: Final[str] = "CodeX Code Editor"
+APP_VERSION: Final[float] = 1.0
+APP_EDITION: Final[str] = "Stable"
 
 def clear_code_area() -> None:
     code_area.delete("0.0", "end")
@@ -43,6 +49,7 @@ def center_window(win, width=600, height=400):
 def create_new_project(event=None) -> None:
     new_project_window: CTkToplevel = CTkToplevel()
     new_project_window.title("New Project")
+    new_project_window.iconbitmap("./logo.ico")
     center_window(new_project_window, 600, 400)
     new_project_window.resizable(False, False)
 
@@ -182,6 +189,10 @@ def change_appearance_mode(mode: str = "Dark") -> None:
     customtkinter.set_appearance_mode(mode)
 
 
+def about_codeX() -> None:
+    CTkMessagebox(title=f"About {APP_NAME}", message=f"{APP_NAME}: {APP_EDITION} Edition\nVersion: {APP_VERSION}\nDeveloped by: Dasun Nethsara")
+
+
 def zoom_in_text(event=None) -> None:
     global font_size
     font_size += 2
@@ -202,10 +213,10 @@ def reset_zoom_text(event=None) -> None:
 
 # -------------------- UI Setup --------------------
 window: CTk = CTk()
-window.title("Text Editor")
+window.title(f"{APP_NAME} : {APP_VERSION}")
 window.geometry("1200x720")
 window.resizable(width=True, height=True)
-
+window.iconbitmap("logo.ico")
 status_var: StringVar = StringVar(value="Ready!")
 language_var: StringVar = StringVar(value="Text File")
 font_size = 13
@@ -238,8 +249,13 @@ appearance_submenu.add_option("LIGHT", command=lambda: change_appearance_mode("L
 appearance_submenu.add_option("DARK", command=lambda: change_appearance_mode("Dark"))
 appearance_submenu.add_option("SYSTEM", command=lambda: change_appearance_mode("System"))
 
+about_dropdown: CustomDropdownMenu = CustomDropdownMenu(widget=about_menu)
+# about_dropdown.add_option(option="What's new?", command=whats_new_dialog)
+about_dropdown.add_option(option="About CodeX", command=about_codeX)
+
 # Set up sidebar visibility control
 sidebar_visible = True
+
 
 def toggle_sidebar():
     global sidebar_visible
@@ -249,6 +265,7 @@ def toggle_sidebar():
         # Re-pack the sidebar on the left side of the content frame
         sidebar_frame.pack(side=LEFT, fill=Y, before=main_content)
     sidebar_visible = not sidebar_visible
+
 
 view_dropdown.add_option(option="Toggle Sidebar", command=toggle_sidebar)
 
