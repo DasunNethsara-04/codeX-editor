@@ -21,6 +21,16 @@ def check_file_type(filename: str) -> str:
         file_type = 'CSS File'
     elif extension == 'js':
         file_type = 'JavaScript File'
+    elif extension == 'md':
+        file_type = 'Markdown File'
+    elif extension == 'ts':
+        file_type = 'TypeScript File'
+    elif extension == 'tsx':
+        file_type = 'TypeScript with JSX'
+    elif extension == 'jsx':
+        file_type = 'JavaScript with XML'
+    elif extension == 'json':
+        file_type = 'JSON File'
     return file_type
 
 
