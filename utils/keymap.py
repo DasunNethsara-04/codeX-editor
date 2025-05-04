@@ -3,6 +3,7 @@ file_shortcuts: list[tuple[str, str]] = [
     ("Open File", "Ctrl + O"),
     ("Save File", "Ctrl + S"),
     ("New Project", "Ctrl + Shift + N"),
+    ("Open folder as a project", "Ctrl + Shift + O"),
 ]
 
 edit_shortcuts: list[tuple[str, str]] = [
