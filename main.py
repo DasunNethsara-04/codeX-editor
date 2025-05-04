@@ -279,7 +279,7 @@ def reset_zoom_text(event=None) -> None:
 
 # -------------------- UI Setup --------------------
 window: CTk = CTk()
-window.title(f"{APP_NAME} : {APP_VERSION}")
+window.title(f"{APP_NAME} : v{APP_VERSION}")
 window.geometry("1200x720")
 window.resizable(width=True, height=True)
 window.iconbitmap("logo.ico")
