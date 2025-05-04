@@ -189,7 +189,7 @@ def change_appearance_mode(mode: str = "Dark") -> None:
     customtkinter.set_appearance_mode(mode)
 
 
-def about_codeX() -> None:
+def about_codeX(event=None) -> None:
     CTkMessagebox(title=f"About {APP_NAME}", message=f"{APP_NAME}: {APP_EDITION} Edition\nVersion: {APP_VERSION}\nDeveloped by: Dasun Nethsara")
 
 
@@ -204,26 +204,12 @@ def keymap(event=None) -> None:
     # Main title
     CTkLabel(keymap_window, text="Keyboard Shortcuts", font=("Arial", 20, "bold")).pack(pady=(20, 10))
 
-    # Create a container frame
-    container = CTkFrame(keymap_window)
-    container.pack(fill=BOTH, expand=True, padx=20, pady=(0, 20))
-
-    # Add a canvas with scrollbar
-    canvas = customtkinter.CTkCanvas(container)
-    scrollbar = customtkinter.CTkScrollbar(container, orientation="vertical", command=canvas.yview)
-    scroll_frame = CTkFrame(canvas)
-
-    # Configure the canvas
-    scroll_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-    canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
-    canvas.configure(yscrollcommand=scrollbar.set)
-
-    # Pack the scrollbar and canvas
-    scrollbar.pack(side=RIGHT, fill=Y)
-    canvas.pack(side=LEFT, fill=BOTH, expand=True)
+    # Create a proper scrollable frame using customtkinter's scrollable frame
+    scrollable_frame = customtkinter.CTkScrollableFrame(keymap_window, width=500, height=350)
+    scrollable_frame.pack(fill=BOTH, expand=True, padx=20, pady=(0, 20))
 
     # File Operations
-    file_frame = CTkFrame(scroll_frame)
+    file_frame = CTkFrame(scrollable_frame)
     file_frame.pack(fill=X, pady=10)
     CTkLabel(file_frame, text="File Operations", font=("Arial", 16, "bold")).pack(anchor="w", padx=10, pady=(5, 0))
 
@@ -241,7 +227,7 @@ def keymap(event=None) -> None:
         CTkLabel(shortcut_frame, text=shortcut, width=100, anchor="w").pack(side=LEFT)
 
     # Editing Operations
-    edit_frame = CTkFrame(scroll_frame)
+    edit_frame = CTkFrame(scrollable_frame)
     edit_frame.pack(fill=X, pady=10)
     CTkLabel(edit_frame, text="Editing", font=("Arial", 16, "bold")).pack(anchor="w", padx=10, pady=(5, 0))
 
@@ -261,7 +247,7 @@ def keymap(event=None) -> None:
         CTkLabel(shortcut_frame, text=shortcut, width=100, anchor="w").pack(side=LEFT)
 
     # View Operations
-    view_frame = CTkFrame(scroll_frame)
+    view_frame = CTkFrame(scrollable_frame)
     view_frame.pack(fill=X, pady=10)
     CTkLabel(view_frame, text="View", font=("Arial", 16, "bold")).pack(anchor="w", padx=10, pady=(5, 0))
 
@@ -279,12 +265,12 @@ def keymap(event=None) -> None:
         CTkLabel(shortcut_frame, text=shortcut, width=100, anchor="w").pack(side=LEFT)
 
     # Help Operations
-    help_frame = CTkFrame(scroll_frame)
+    help_frame = CTkFrame(scrollable_frame)
     help_frame.pack(fill=X, pady=10)
     CTkLabel(help_frame, text="Help", font=("Arial", 16, "bold")).pack(anchor="w", padx=10, pady=(5, 0))
 
     help_shortcuts = [
-        ("Keyboard Shortcuts", "Ctrl+K"),
+        ("Keyboard Shortcuts", "Ctrl + K"),
         ("About CodeX", "F1"),
     ]
 
@@ -296,6 +282,12 @@ def keymap(event=None) -> None:
 
     # Close button
     CTkButton(keymap_window, text="Close", command=keymap_window.destroy, width=100).pack(pady=(0, 20))
+
+    # Add mouse wheel scrolling support
+    def _on_mousewheel(event):
+        scrollable_frame._parent_canvas.yview_scroll(-int(event.delta / 2), "units")
+
+    scrollable_frame.bind_all("<MouseWheel>", _on_mousewheel)
 
     # Focus the window
     keymap_window.focus()
