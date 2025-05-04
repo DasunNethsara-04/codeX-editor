@@ -1,7 +1,6 @@
 import os
 import tkinter.ttk as ttk
 from tkinter import filedialog, Y
-from typing import Final
 
 import customtkinter
 from CTkMenuBar import CTkMenuBar, CustomDropdownMenu
@@ -21,13 +20,9 @@ from customtkinter import (
     CTkToplevel, CTkRadioButton, CTkEntry
 )
 
+from utils.keymap import *
+from utils.config import *
 from utils import file_types, check_file_type, create_project_files
-
-
-# APPLICATION DETAILS
-APP_NAME: Final[str] = "CodeX Code Editor"
-APP_VERSION: Final[float] = 1.0
-APP_EDITION: Final[str] = "Stable"
 
 def clear_code_area() -> None:
     code_area.delete("0.0", "end")
@@ -213,13 +208,6 @@ def keymap(event=None) -> None:
     file_frame.pack(fill=X, pady=10)
     CTkLabel(file_frame, text="File Operations", font=("Arial", 16, "bold")).pack(anchor="w", padx=10, pady=(5, 0))
 
-    file_shortcuts = [
-        ("New File", "Ctrl+N"),
-        ("Open File", "Ctrl+O"),
-        ("Save File", "Ctrl+S"),
-        ("New Project", "Ctrl+Shift+N"),
-    ]
-
     for action, shortcut in file_shortcuts:
         shortcut_frame = CTkFrame(file_frame)
         shortcut_frame.pack(fill=X, padx=10, pady=2)
@@ -230,15 +218,6 @@ def keymap(event=None) -> None:
     edit_frame = CTkFrame(scrollable_frame)
     edit_frame.pack(fill=X, pady=10)
     CTkLabel(edit_frame, text="Editing", font=("Arial", 16, "bold")).pack(anchor="w", padx=10, pady=(5, 0))
-
-    edit_shortcuts = [
-        ("Cut", "Ctrl+X"),
-        ("Copy", "Ctrl+C"),
-        ("Paste", "Ctrl+V"),
-        ("Select All", "Ctrl+A"),
-        ("Undo", "Ctrl+Z"),
-        ("Redo", "Ctrl+Y"),
-    ]
 
     for action, shortcut in edit_shortcuts:
         shortcut_frame = CTkFrame(edit_frame)
@@ -251,13 +230,6 @@ def keymap(event=None) -> None:
     view_frame.pack(fill=X, pady=10)
     CTkLabel(view_frame, text="View", font=("Arial", 16, "bold")).pack(anchor="w", padx=10, pady=(5, 0))
 
-    view_shortcuts = [
-        ("Zoom In", "Ctrl++"),
-        ("Zoom Out", "Ctrl+-"),
-        ("Reset Zoom", "Ctrl+0"),
-        ("Toggle Sidebar", "Ctrl+B"),
-    ]
-
     for action, shortcut in view_shortcuts:
         shortcut_frame = CTkFrame(view_frame)
         shortcut_frame.pack(fill=X, padx=10, pady=2)
@@ -268,11 +240,6 @@ def keymap(event=None) -> None:
     help_frame = CTkFrame(scrollable_frame)
     help_frame.pack(fill=X, pady=10)
     CTkLabel(help_frame, text="Help", font=("Arial", 16, "bold")).pack(anchor="w", padx=10, pady=(5, 0))
-
-    help_shortcuts = [
-        ("Keyboard Shortcuts", "Ctrl + K"),
-        ("About CodeX", "F1"),
-    ]
 
     for action, shortcut in help_shortcuts:
         shortcut_frame = CTkFrame(help_frame)
@@ -318,7 +285,6 @@ window.resizable(width=True, height=True)
 window.iconbitmap("logo.ico")
 status_var: StringVar = StringVar(value="Ready!")
 language_var: StringVar = StringVar(value="Text File")
-font_size = 13
 
 # Add the menu bar at the top
 menu = CTkMenuBar(master=window)
