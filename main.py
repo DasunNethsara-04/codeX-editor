@@ -193,6 +193,113 @@ def about_codeX() -> None:
     CTkMessagebox(title=f"About {APP_NAME}", message=f"{APP_NAME}: {APP_EDITION} Edition\nVersion: {APP_VERSION}\nDeveloped by: Dasun Nethsara")
 
 
+def keymap(event=None) -> None:
+    """Opens a window that displays all keyboard shortcuts available in the application."""
+    keymap_window = CTkToplevel()
+    keymap_window.title("CodeX Keyboard Shortcuts")
+    keymap_window.iconbitmap("./logo.ico")
+    center_window(keymap_window, 550, 450)
+    keymap_window.resizable(False, False)
+
+    # Main title
+    CTkLabel(keymap_window, text="Keyboard Shortcuts", font=("Arial", 20, "bold")).pack(pady=(20, 10))
+
+    # Create a container frame
+    container = CTkFrame(keymap_window)
+    container.pack(fill=BOTH, expand=True, padx=20, pady=(0, 20))
+
+    # Add a canvas with scrollbar
+    canvas = customtkinter.CTkCanvas(container)
+    scrollbar = customtkinter.CTkScrollbar(container, orientation="vertical", command=canvas.yview)
+    scroll_frame = CTkFrame(canvas)
+
+    # Configure the canvas
+    scroll_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+    canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
+    canvas.configure(yscrollcommand=scrollbar.set)
+
+    # Pack the scrollbar and canvas
+    scrollbar.pack(side=RIGHT, fill=Y)
+    canvas.pack(side=LEFT, fill=BOTH, expand=True)
+
+    # File Operations
+    file_frame = CTkFrame(scroll_frame)
+    file_frame.pack(fill=X, pady=10)
+    CTkLabel(file_frame, text="File Operations", font=("Arial", 16, "bold")).pack(anchor="w", padx=10, pady=(5, 0))
+
+    file_shortcuts = [
+        ("New File", "Ctrl+N"),
+        ("Open File", "Ctrl+O"),
+        ("Save File", "Ctrl+S"),
+        ("New Project", "Ctrl+Shift+N"),
+    ]
+
+    for action, shortcut in file_shortcuts:
+        shortcut_frame = CTkFrame(file_frame)
+        shortcut_frame.pack(fill=X, padx=10, pady=2)
+        CTkLabel(shortcut_frame, text=action, width=150, anchor="w").pack(side=LEFT)
+        CTkLabel(shortcut_frame, text=shortcut, width=100, anchor="w").pack(side=LEFT)
+
+    # Editing Operations
+    edit_frame = CTkFrame(scroll_frame)
+    edit_frame.pack(fill=X, pady=10)
+    CTkLabel(edit_frame, text="Editing", font=("Arial", 16, "bold")).pack(anchor="w", padx=10, pady=(5, 0))
+
+    edit_shortcuts = [
+        ("Cut", "Ctrl+X"),
+        ("Copy", "Ctrl+C"),
+        ("Paste", "Ctrl+V"),
+        ("Select All", "Ctrl+A"),
+        ("Undo", "Ctrl+Z"),
+        ("Redo", "Ctrl+Y"),
+    ]
+
+    for action, shortcut in edit_shortcuts:
+        shortcut_frame = CTkFrame(edit_frame)
+        shortcut_frame.pack(fill=X, padx=10, pady=2)
+        CTkLabel(shortcut_frame, text=action, width=150, anchor="w").pack(side=LEFT)
+        CTkLabel(shortcut_frame, text=shortcut, width=100, anchor="w").pack(side=LEFT)
+
+    # View Operations
+    view_frame = CTkFrame(scroll_frame)
+    view_frame.pack(fill=X, pady=10)
+    CTkLabel(view_frame, text="View", font=("Arial", 16, "bold")).pack(anchor="w", padx=10, pady=(5, 0))
+
+    view_shortcuts = [
+        ("Zoom In", "Ctrl++"),
+        ("Zoom Out", "Ctrl+-"),
+        ("Reset Zoom", "Ctrl+0"),
+        ("Toggle Sidebar", "Ctrl+B"),
+    ]
+
+    for action, shortcut in view_shortcuts:
+        shortcut_frame = CTkFrame(view_frame)
+        shortcut_frame.pack(fill=X, padx=10, pady=2)
+        CTkLabel(shortcut_frame, text=action, width=150, anchor="w").pack(side=LEFT)
+        CTkLabel(shortcut_frame, text=shortcut, width=100, anchor="w").pack(side=LEFT)
+
+    # Help Operations
+    help_frame = CTkFrame(scroll_frame)
+    help_frame.pack(fill=X, pady=10)
+    CTkLabel(help_frame, text="Help", font=("Arial", 16, "bold")).pack(anchor="w", padx=10, pady=(5, 0))
+
+    help_shortcuts = [
+        ("Keyboard Shortcuts", "Ctrl+K"),
+        ("About CodeX", "F1"),
+    ]
+
+    for action, shortcut in help_shortcuts:
+        shortcut_frame = CTkFrame(help_frame)
+        shortcut_frame.pack(fill=X, padx=10, pady=2)
+        CTkLabel(shortcut_frame, text=action, width=150, anchor="w").pack(side=LEFT)
+        CTkLabel(shortcut_frame, text=shortcut, width=100, anchor="w").pack(side=LEFT)
+
+    # Close button
+    CTkButton(keymap_window, text="Close", command=keymap_window.destroy, width=100).pack(pady=(0, 20))
+
+    # Focus the window
+    keymap_window.focus()
+
 def zoom_in_text(event=None) -> None:
     global font_size
     font_size += 2
@@ -225,7 +332,7 @@ font_size = 13
 menu = CTkMenuBar(master=window)
 file_menu: CTkButton = menu.add_cascade("File")
 view_menu: CTkButton = menu.add_cascade("View")
-about_menu: CTkButton = menu.add_cascade("About")
+help_menu: CTkButton = menu.add_cascade("Help")
 
 # Create the main container frame
 content_frame = CTkFrame(window)
@@ -245,13 +352,14 @@ file_dropdown.add_option(option="Exit", command=lambda: window.destroy())
 
 view_dropdown: CustomDropdownMenu = CustomDropdownMenu(widget=view_menu)
 appearance_submenu: CustomDropdownMenu = view_dropdown.add_submenu("Appearance Mode")
-appearance_submenu.add_option("LIGHT", command=lambda: change_appearance_mode("Light"))
-appearance_submenu.add_option("DARK", command=lambda: change_appearance_mode("Dark"))
-appearance_submenu.add_option("SYSTEM", command=lambda: change_appearance_mode("System"))
+appearance_submenu.add_option("Light", command=lambda: change_appearance_mode("Light"))
+appearance_submenu.add_option("Dark", command=lambda: change_appearance_mode("Dark"))
+appearance_submenu.add_option("System Theme", command=lambda: change_appearance_mode("System"))
 
-about_dropdown: CustomDropdownMenu = CustomDropdownMenu(widget=about_menu)
-# about_dropdown.add_option(option="What's new?", command=whats_new_dialog)
-about_dropdown.add_option(option="About CodeX", command=about_codeX)
+help_dropdown: CustomDropdownMenu = CustomDropdownMenu(widget=help_menu)
+# help_dropdown.add_option(option="What's new?", command=whats_new_dialog)
+help_dropdown.add_option(option="Keymap", command=keymap)
+help_dropdown.add_option(option="About CodeX", command=about_codeX)
 
 # Set up sidebar visibility control
 sidebar_visible = True
@@ -309,5 +417,6 @@ window.bind("<Control-0>", reset_zoom_text)
 window.bind("<Control-s>", save_file)
 window.bind("<Control-n>", create_new_file)
 window.bind("<Control-o>", open_file_content)
+window.bind("<Control-k>", keymap)
 
 window.mainloop()
