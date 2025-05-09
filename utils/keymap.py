@@ -25,4 +25,5 @@ view_shortcuts: list[tuple[str, str]] = [
 help_shortcuts: list[tuple[str, str]] = [
     ("Keyboard Shortcuts", "Ctrl + K"),
     ("About CodeX", "F1"),
+    ("Whats New?", "F2"),
 ]
