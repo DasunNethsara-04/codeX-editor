@@ -22,15 +22,21 @@ from customtkinter import (
 
 from utils.keymap import *
 from utils.config import *
-from utils import file_types, check_file_type, create_project_files
+from utils import file_types, check_file_type, create_project_files, CHANGELOG
+
+# Add a global variable to track the current file path
+current_file_path = None
 
 def clear_code_area() -> None:
     code_area.delete("0.0", "end")
 
 
 def create_new_file(event=None) -> None:
+    global current_file_path
+    current_file_path = None
     language_var.set('Text File')
     clear_code_area()
+    status_var.set("Ready!")
 
 
 def center_window(win, width=600, height=400):
@@ -127,9 +133,11 @@ def on_tree_expand(event) -> None:
 
 
 def on_tree_double_click(event) -> None:
+    global current_file_path
     node_id = tree.focus()
     path = tree_paths.get(node_id)
     if os.path.isfile(path):
+        current_file_path = path  # Update the current file path
         with open(path, "r") as f:
             content = f.read()
         code_area.delete("0.0", "end")
@@ -147,8 +155,10 @@ def open_project(path: str) -> None:
 
 # -------------------- File Functions --------------------
 def open_file_content(event=None) -> None:
+    global current_file_path
     filename: str = filedialog.askopenfilename()
     if filename:  # Add check if file was selected
+        current_file_path = filename  # Update the current file path
         language_var.set(check_file_type(filename))
         with open(filename, "r") as file:
             code_area.delete("0.0", "end")
@@ -168,16 +178,30 @@ def get_code_area_content() -> str:
 
 
 def save_file(event=None) -> None:
+    global current_file_path
+    content: str = get_code_area_content()
+
+    if current_file_path:
+        # If we have a current file path, save to that file
+        with open(current_file_path, "w") as file:
+            file.write(content)
+        status_var.set(f"Saved: {os.path.basename(current_file_path)}")
+    else:
+        # If no current file path, perform a Save As operation
+        save_file_as()
+
+
+def save_file_as(event=None) -> None:
+    global current_file_path
     content: str = get_code_area_content()
     filepath = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=file_types)
     if filepath:
+        current_file_path = filepath  # Update the current file path
         with open(filepath, "w") as file:
             file.write(content)
         status_var.set(f"Saved: {os.path.basename(filepath)}")
-
-
-def save_file_as() -> None:
-    save_file()  # Reuse the save_file function since it always asks for location
+        # Update language display based on file extension
+        language_var.set(check_file_type(filepath))
 
 
 def change_appearance_mode(mode: str = "Dark") -> None:
@@ -185,7 +209,90 @@ def change_appearance_mode(mode: str = "Dark") -> None:
 
 
 def about_codeX(event=None) -> None:
-    CTkMessagebox(title=f"About {APP_NAME}", message=f"{APP_NAME}: {APP_EDITION} Edition\nVersion: {APP_VERSION}\nDeveloped by: Dasun Nethsara")
+    CTkMessagebox(title=f"About {APP_NAME}",
+                  message=f"{APP_NAME}: {APP_EDITION} Edition\nVersion: {APP_VERSION}\nDeveloped by: Dasun Nethsara")
+
+
+def whats_new_dialog(event=None) -> None:
+    """Opens a window that displays the changelog of the application."""
+    changelog_window = CTkToplevel()
+    changelog_window.title(f"{APP_NAME} - What's New")
+    changelog_window.iconbitmap("./logo.ico")
+    center_window(changelog_window, 600, 500)
+    changelog_window.resizable(True, True)
+
+    # Main title
+    header_frame = CTkFrame(changelog_window)
+    header_frame.pack(fill=X, padx=20, pady=20)
+
+    CTkLabel(
+        header_frame,
+        text=f"{APP_NAME} Change Log",
+        font=("Arial", 24, "bold")
+    ).pack(side=LEFT)
+
+    CTkLabel(
+        header_frame,
+        text=f"Current Version: {APP_VERSION}",
+        font=("Arial", 14)
+    ).pack(side=RIGHT, padx=10)
+
+    # Create scrollable frame for changelog content
+    scrollable_frame = customtkinter.CTkScrollableFrame(
+        changelog_window,
+        width=560,
+        height=380
+    )
+    scrollable_frame.pack(fill=BOTH, expand=True, padx=20, pady=(0, 20))
+
+    # Add version history
+    for version, changes in CHANGELOG:
+        # Version header
+        version_frame = CTkFrame(scrollable_frame)
+        version_frame.pack(fill=X, pady=(15, 5))
+
+        CTkLabel(
+            version_frame,
+            text=f"Version {version}",
+            font=("Arial", 16, "bold"),
+            anchor="w"
+        ).pack(fill=X, padx=10, pady=5)
+
+        # Changes for this version
+        changes_frame = CTkFrame(scrollable_frame)
+        changes_frame.pack(fill=X, padx=20, pady=5)
+
+        for i, change in enumerate(changes):
+            change_item = CTkFrame(changes_frame)
+            change_item.pack(fill=X, pady=2)
+
+            bullet = CTkLabel(change_item, text="•", width=20, anchor="e")
+            bullet.pack(side=LEFT, padx=(5, 0))
+
+            CTkLabel(
+                change_item,
+                text=change,
+                anchor="w",
+                wraplength=480  # Enable text wrapping for long descriptions
+            ).pack(side=LEFT, fill=X, expand=True, padx=5)
+
+    # Footer with close button
+    CTkButton(
+        changelog_window,
+        text="Close",
+        command=changelog_window.destroy,
+        width=120,
+        height=32
+    ).pack(pady=(0, 20))
+
+    # Add mouse wheel scrolling support
+    def _on_mousewheel(event):
+        scrollable_frame._parent_canvas.yview_scroll(-int(event.delta / 2), "units")
+
+    scrollable_frame.bind_all("<MouseWheel>", _on_mousewheel)
+
+    # Focus the window
+    changelog_window.focus()
 
 
 def keymap(event=None) -> None:
@@ -259,6 +366,7 @@ def keymap(event=None) -> None:
     # Focus the window
     keymap_window.focus()
 
+
 def zoom_in_text(event=None) -> None:
     global font_size
     font_size += 2
@@ -315,7 +423,7 @@ appearance_submenu.add_option("Dark", command=lambda: change_appearance_mode("Da
 appearance_submenu.add_option("System Theme", command=lambda: change_appearance_mode("System"))
 
 help_dropdown: CustomDropdownMenu = CustomDropdownMenu(widget=help_menu)
-# help_dropdown.add_option(option="What's new?", command=whats_new_dialog)
+help_dropdown.add_option(option="What's New?", command=whats_new_dialog)
 help_dropdown.add_option(option="Keymap", command=keymap)
 help_dropdown.add_option(option="About CodeX", command=about_codeX)
 
@@ -379,6 +487,8 @@ window.bind("<Control-o>", open_file_content)
 window.bind("<Control-Shift-N>", create_new_project)
 window.bind("<Control-Shift-O>", open_folder_as_project)
 window.bind("<Control-k>", keymap)
+# Keyboard shortcuts for general functions
 window.bind("<F1>", about_codeX)
+window.bind("<F2>", whats_new_dialog)
 
 window.mainloop()
