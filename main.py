@@ -27,6 +27,7 @@ from utils import file_types, check_file_type, create_project_files, CHANGELOG
 # Add a global variable to track the current file path
 current_file_path = None
 
+
 def clear_code_area() -> None:
     code_area.delete("0.0", "end")
 
@@ -482,12 +483,13 @@ window.bind("<Control-minus>", zoom_out_text)
 window.bind("<Control-0>", reset_zoom_text)
 window.bind("<Control-b>", toggle_sidebar)
 window.bind("<Control-s>", save_file)
+window.bind("<Control-Shift-S>", save_file_as)
 window.bind("<Control-n>", create_new_file)
 window.bind("<Control-o>", open_file_content)
 window.bind("<Control-Shift-N>", create_new_project)
 window.bind("<Control-Shift-O>", open_folder_as_project)
 window.bind("<Control-k>", keymap)
-# Keyboard shortcuts for general functions
+
 window.bind("<F1>", about_codeX)
 window.bind("<F2>", whats_new_dialog)
 
