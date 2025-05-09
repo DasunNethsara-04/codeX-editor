@@ -323,7 +323,7 @@ help_dropdown.add_option(option="About CodeX", command=about_codeX)
 sidebar_visible = True
 
 
-def toggle_sidebar():
+def toggle_sidebar(event=None):
     global sidebar_visible
     if sidebar_visible:
         sidebar_frame.pack_forget()
@@ -372,6 +372,7 @@ status_file_label.pack(side=RIGHT, padx=10)
 window.bind("<Control-plus>", zoom_in_text)
 window.bind("<Control-minus>", zoom_out_text)
 window.bind("<Control-0>", reset_zoom_text)
+window.bind("<Control-b>", toggle_sidebar)
 window.bind("<Control-s>", save_file)
 window.bind("<Control-n>", create_new_file)
 window.bind("<Control-o>", open_file_content)
