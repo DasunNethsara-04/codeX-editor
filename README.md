@@ -20,16 +20,21 @@
 
 ## ⌨️ Shortcut Keys
 
-| Shortcut              | Action                            |
-|-----------------------|-----------------------------------|
-| `Ctrl + O`            | Open a file                       |
-| `Ctrl + S`            | Save current file                 |
-| `Ctrl + N`            | Create a new file                 |
-| `Ctrl + M`            | Create a new project              |
-| `Ctrl + B`            | Open a folder as a project        |
-| `Ctrl + +`            | Zoom in the code area             |
-| `Ctrl + -`            | Zoom out the code area            |
-| `Ctrl + 0`            | Reset zoom in the code area       |
+| Shortcut           | Action                      |
+|--------------------|-----------------------------|
+| `Ctrl + O`         | Open a file                 |
+| `Ctrl + S`         | Save current file           |
+| `Ctrl + Shift + S` | Save current file           |
+| `Ctrl + N`         | Create a new file           |
+| `Ctrl + Shift + N` | Create a new project        |
+| `Ctrl + Shift + O` | Open a folder as a project  |
+| `Ctrl + +`         | Zoom in the code area       |
+| `Ctrl + -`         | Zoom out the code area      |
+| `Ctrl + 0`         | Reset zoom in the code area |
+| `Ctrl + B`         | Toggle Sidebar              |
+| `Ctrl + K`         | Keyboard Shortcuts          |
+| `F1`               | About CodeX                 |
+| `F2`               | Whats New?                  |
 
 > 📝 Note: On macOS, use `Command` instead of `Control`.
 
