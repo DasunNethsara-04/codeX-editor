@@ -40,7 +40,7 @@ def create_new_file(event=None) -> None:
     status_var.set("Ready!")
 
 
-def center_window(win, width=600, height=400):
+def center_window(win, width=600, height=400) -> None:
     screen_width = win.winfo_screenwidth()
     screen_height = win.winfo_screenheight()
     x = int((screen_width / 2) - (width / 2))
@@ -138,7 +138,7 @@ def on_tree_double_click(event) -> None:
     node_id = tree.focus()
     path = tree_paths.get(node_id)
     if os.path.isfile(path):
-        current_file_path = path  # Update the current file path
+        current_file_path = path
         with open(path, "r") as f:
             content = f.read()
         code_area.delete("0.0", "end")
@@ -158,8 +158,8 @@ def open_project(path: str) -> None:
 def open_file_content(event=None) -> None:
     global current_file_path
     filename: str = filedialog.askopenfilename()
-    if filename:  # Add check if file was selected
-        current_file_path = filename  # Update the current file path
+    if filename:
+        current_file_path = filename
         language_var.set(check_file_type(filename))
         with open(filename, "r") as file:
             code_area.delete("0.0", "end")
@@ -183,12 +183,10 @@ def save_file(event=None) -> None:
     content: str = get_code_area_content()
 
     if current_file_path:
-        # If we have a current file path, save to that file
         with open(current_file_path, "w") as file:
             file.write(content)
         status_var.set(f"Saved: {os.path.basename(current_file_path)}")
     else:
-        # If no current file path, perform a Save As operation
         save_file_as()
 
 
@@ -197,11 +195,10 @@ def save_file_as(event=None) -> None:
     content: str = get_code_area_content()
     filepath = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=file_types)
     if filepath:
-        current_file_path = filepath  # Update the current file path
+        current_file_path = filepath
         with open(filepath, "w") as file:
             file.write(content)
         status_var.set(f"Saved: {os.path.basename(filepath)}")
-        # Update language display based on file extension
         language_var.set(check_file_type(filepath))
 
 
@@ -215,7 +212,6 @@ def about_codeX(event=None) -> None:
 
 
 def whats_new_dialog(event=None) -> None:
-    """Opens a window that displays the changelog of the application."""
     changelog_window = CTkToplevel()
     changelog_window.title(f"{APP_NAME} - What's New")
     changelog_window.iconbitmap("./logo.ico")
@@ -238,7 +234,6 @@ def whats_new_dialog(event=None) -> None:
         font=("Arial", 14)
     ).pack(side=RIGHT, padx=10)
 
-    # Create scrollable frame for changelog content
     scrollable_frame = customtkinter.CTkScrollableFrame(
         changelog_window,
         width=560,
@@ -259,7 +254,6 @@ def whats_new_dialog(event=None) -> None:
             anchor="w"
         ).pack(fill=X, padx=10, pady=5)
 
-        # Changes for this version
         changes_frame = CTkFrame(scrollable_frame)
         changes_frame.pack(fill=X, padx=20, pady=5)
 
@@ -274,10 +268,9 @@ def whats_new_dialog(event=None) -> None:
                 change_item,
                 text=change,
                 anchor="w",
-                wraplength=480  # Enable text wrapping for long descriptions
+                wraplength=480
             ).pack(side=LEFT, fill=X, expand=True, padx=5)
 
-    # Footer with close button
     CTkButton(
         changelog_window,
         text="Close",
@@ -286,8 +279,7 @@ def whats_new_dialog(event=None) -> None:
         height=32
     ).pack(pady=(0, 20))
 
-    # Add mouse wheel scrolling support
-    def _on_mousewheel(event):
+    def _on_mousewheel(event) -> None:
         scrollable_frame._parent_canvas.yview_scroll(-int(event.delta / 2), "units")
 
     scrollable_frame.bind_all("<MouseWheel>", _on_mousewheel)
@@ -297,7 +289,6 @@ def whats_new_dialog(event=None) -> None:
 
 
 def keymap(event=None) -> None:
-    """Opens a window that displays all keyboard shortcuts available in the application."""
     keymap_window = CTkToplevel()
     keymap_window.title("CodeX Keyboard Shortcuts")
     keymap_window.iconbitmap("./logo.ico")
@@ -359,7 +350,7 @@ def keymap(event=None) -> None:
     CTkButton(keymap_window, text="Close", command=keymap_window.destroy, width=100).pack(pady=(0, 20))
 
     # Add mouse wheel scrolling support
-    def _on_mousewheel(event):
+    def _on_mousewheel(event) -> None:
         scrollable_frame._parent_canvas.yview_scroll(-int(event.delta / 2), "units")
 
     scrollable_frame.bind_all("<MouseWheel>", _on_mousewheel)
@@ -376,7 +367,7 @@ def zoom_in_text(event=None) -> None:
 
 def zoom_out_text(event=None) -> None:
     global font_size
-    font_size = max(8, font_size - 2)  # Prevent font from becoming too small
+    font_size = max(8, font_size - 2)
     code_area.configure(font=("Consolas", font_size))
 
 
@@ -444,21 +435,15 @@ def toggle_sidebar(event=None):
 
 view_dropdown.add_option(option="Toggle Sidebar", command=toggle_sidebar)
 
-# Create the sidebar frame
 sidebar_frame = CTkFrame(content_frame, width=250)
 sidebar_frame.pack(side=LEFT, fill=Y)
 
-# Create the main content area (will contain code area)
 main_content = CTkFrame(content_frame)
 main_content.pack(side=RIGHT, fill=BOTH, expand=True)
 
 # Add tree to sidebar
-tree = ttk.Treeview(sidebar_frame, show="tree")  # Only show the tree, not the headings
+tree = ttk.Treeview(sidebar_frame, show="tree")
 tree.pack(fill=BOTH, expand=True)
-
-# tree_scroll = ttk.Scrollbar(sidebar_frame, orient="vertical", command=tree.yview)
-# tree.configure(yscrollcommand=tree_scroll.set)
-# tree_scroll.pack(side=RIGHT, fill=Y)
 
 tree.bind("<<TreeviewOpen>>", on_tree_expand)
 tree.bind("<Double-1>", on_tree_double_click)
