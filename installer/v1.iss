@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "CodeX Code Editor"
-#define MyAppVersion "1.1"
+#define MyAppVersion "1.2"
 #define MyAppPublisher "Dasun Nethsara"
 #define MyAppExeName "codeX.exe"
 
@@ -29,7 +29,7 @@ LicenseFile=K:\Development\text-editor\LICENSE.txt
 ; Uncomment the following line to run in non administrative install mode (install for current user only).
 ;PrivilegesRequired=lowest
 OutputDir=C:\Users\Dasun Nethsara\Desktop
-OutputBaseFilename=codeX-v1.0
+OutputBaseFilename=codeX-v1.2
 SetupIconFile=K:\Development\text-editor\logo.ico
 SolidCompression=yes
 WizardStyle=modern
