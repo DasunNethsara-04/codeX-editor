@@ -3,6 +3,7 @@
 CHANGELOG: list[tuple[str, list[str]]] = [
     ("1.2.0", [
         "Fixed file save functionality",
+        "Improved file types detection",
         "Added What's New dialog",
         "Improved UI responsiveness",
     ]),
