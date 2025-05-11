@@ -9,7 +9,7 @@ def get_file_extension(filename: str) -> str | None:
 
 
 def check_file_type(filename: str) -> str:
-    extension: str = get_file_extension(filename)
+    extension: str = get_file_extension(filename).lower()
     file_type: str | None = None
     if extension == 'txt':
         file_type = 'Text File'
@@ -19,6 +19,8 @@ def check_file_type(filename: str) -> str:
         file_type = 'HTML File'
     elif extension == 'css':
         file_type = 'CSS File'
+    elif extension == 'sql':
+        file_type = 'SQL File'
     elif extension == 'js':
         file_type = 'JavaScript File'
     elif extension == 'md':
@@ -31,6 +33,16 @@ def check_file_type(filename: str) -> str:
         file_type = 'JavaScript with XML'
     elif extension == 'json':
         file_type = 'JSON File'
+    elif extension == 'env':
+        file_type = 'ENV File'
+    elif extension == 'cfg':
+        file_type = 'Config File'
+    elif extension == 'toml':
+        file_type = 'TOML File'
+    elif extension == 'yaml':
+        file_type ='YAML File'
+    elif extension == 'gitignore':
+        file_type = 'GitIgnore File'
     return file_type
 
 
