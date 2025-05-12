@@ -20,7 +20,7 @@ from customtkinter import (
     CTkToplevel, CTkRadioButton, CTkEntry
 )
 from pygments import lex
-from pygments.lexers import guess_lexer
+from pygments.lexers import get_lexer_by_name, guess_lexer
 
 from utils.keymap import *
 from utils.config import *
@@ -40,6 +40,7 @@ def create_new_file(event=None) -> None:
     language_var.set('Text File')
     clear_code_area()
     status_var.set("Ready!")
+    update_line_numbers()
 
 
 def center_window(win, width=600, height=400) -> None:
@@ -148,6 +149,7 @@ def on_tree_double_click(event) -> None:
         language_var.set(check_file_type(path))
         status_var.set(f"Opened: {os.path.basename(path)}")
         highlight_syntax(language_var.get())
+        update_line_numbers()
 
 
 def open_project(path: str) -> None:
@@ -168,6 +170,7 @@ def open_file_content(event=None) -> None:
             code_area.delete("0.0", "end")
             code_area.insert("0.0", file.read())
         status_var.set(f"Opened: {os.path.basename(filename)}")
+        update_line_numbers()
 
 
 def open_folder_as_project(event=None) -> None:
@@ -469,6 +472,65 @@ def on_key_release(event=None) -> None:
         on_key_release.timer_id = window.after(500, lambda: highlight_syntax(language_var.get()))
 
 
+def update_line_numbers(event=None):
+    """Update line numbers dynamically with improved reliability"""
+    try:
+        # Get the total number of lines in the code area
+        # Use get('1.0', 'end-1c') to ensure we capture the entire content
+        code_lines = code_area.get('1.0', 'end-1c').split('\n')
+
+        # Ensure we always have at least one line (even if empty)
+        number_lines = max(1, len(code_lines))
+
+        # Generate line numbers with consistent width for better alignment
+        number_text = '\n'.join(f"{i + 1:4}" for i in range(number_lines))
+
+        # Update the line number widget
+        line_numbers.configure(state="normal")
+        line_numbers.delete('1.0', 'end')
+        line_numbers.insert('1.0', number_text)
+        line_numbers.configure(state="disabled")
+    except Exception as e:
+        print(f"Error updating line numbers: {e}")
+
+
+# Modify scroll synchronization
+def sync_scroll(*args) -> None:
+    """Synchronize scrolling between line numbers and code area"""
+    try:
+        # Ensure arguments are passed correctly
+        if len(args) >= 2:
+            first, last = args[0], args[1]
+            line_numbers.configure(state="normal")
+            line_numbers._textbox.yview_moveto(first)
+            line_numbers.configure(state="disabled")
+    except Exception as e:
+        print(f"Scroll sync error: {e}")
+
+
+def on_content_change(event=None) -> None:
+    """Handle content changes and update line numbers more robustly"""
+    # Use after method to prevent multiple rapid updates
+    if hasattr(on_content_change, "timer_id"):
+        try:
+            window.after_cancel(on_content_change.timer_id)
+        except:
+            pass
+
+    # Slightly increased delay to ensure full content update
+    on_content_change.timer_id = window.after(100, update_line_numbers)
+
+
+def toggle_sidebar(event=None) -> None:
+    global sidebar_visible
+    if sidebar_visible:
+        sidebar_frame.pack_forget()
+    else:
+        # Re-pack the sidebar on the left side of the content frame
+        sidebar_frame.pack(side=LEFT, fill=Y, before=main_content)
+    sidebar_visible = not sidebar_visible
+
+
 # -------------------- UI Setup --------------------
 window: CTk = CTk()
 window.title(f"{APP_NAME} : v{APP_VERSION}")
@@ -514,17 +576,6 @@ help_dropdown.add_option(option="About CodeX", command=about_codeX)
 # Set up sidebar visibility control
 sidebar_visible = True
 
-
-def toggle_sidebar(event=None):
-    global sidebar_visible
-    if sidebar_visible:
-        sidebar_frame.pack_forget()
-    else:
-        # Re-pack the sidebar on the left side of the content frame
-        sidebar_frame.pack(side=LEFT, fill=Y, before=main_content)
-    sidebar_visible = not sidebar_visible
-
-
 view_dropdown.add_option(option="Toggle Sidebar", command=toggle_sidebar)
 
 sidebar_frame = CTkFrame(content_frame, width=250)
@@ -540,8 +591,13 @@ tree.pack(fill=BOTH, expand=True)
 tree.bind("<<TreeviewOpen>>", on_tree_expand)
 tree.bind("<Double-1>", on_tree_double_click)
 
+line_numbers = customtkinter.CTkTextbox(main_content, width=50)
+line_numbers.configure(state="disabled")  # Prevent editing
+line_numbers.configure(yscrollcommand=lambda *args: None)  # 🔥 Hides scrollbar
+line_numbers.pack(side=LEFT, fill=Y)
+
 # Add code area to main content
-code_area: CTkTextbox = CTkTextbox(main_content, font=("JetBrains Mono Medium", font_size))
+code_area: CTkTextbox = CTkTextbox(main_content, font=("Consolas", font_size))
 code_area.pack(fill=BOTH, expand=True)
 
 # Add status bar at the bottom of the window
@@ -554,8 +610,15 @@ status_label.pack(side=LEFT, padx=10)
 status_file_label: CTkLabel = CTkLabel(status_bar, textvariable=language_var, anchor="w")
 status_file_label.pack(side=RIGHT, padx=10)
 
-# Bind key release event for real-time syntax highlighting
-code_area.bind("<KeyRelease>", on_key_release)
+# Modify existing bindings
+code_area.bind("<KeyRelease>", on_content_change)
+code_area.bind("<Return>", on_content_change)
+code_area.bind("<BackSpace>", on_content_change)
+code_area.bind("<Delete>", on_content_change)
+
+# Reconfigure scrollbar to use our sync_scroll function
+code_area.configure(yscrollcommand=lambda *args: (sync_scroll(*args),
+                                                  line_numbers.configure(yscrollcommand=lambda *args: None)))
 
 # Keyboard shortcuts
 window.bind("<Control-plus>", zoom_in_text)
