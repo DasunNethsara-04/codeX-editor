@@ -1,6 +1,8 @@
 import os
 import tkinter.ttk as ttk
-from tkinter import filedialog, Y
+from tkinter import filedialog, Y, Text, END
+from typing import Final
+import re
 
 import customtkinter
 from CTkMenuBar import CTkMenuBar, CustomDropdownMenu
@@ -19,10 +21,81 @@ from customtkinter import (
     LEFT,
     CTkToplevel, CTkRadioButton, CTkEntry
 )
+from pygments import lex
+from pygments.lexers import get_lexer_by_name, guess_lexer
+from pygments.token import Token
 
 from utils.keymap import *
 from utils.config import *
 from utils import file_types, check_file_type, create_project_files, CHANGELOG
+
+SYNTAX_COLORS = {
+    # Keywords - Pink/Purple
+    Token.Keyword: "#C586C0",  # Pink/Purple
+    Token.Keyword.Constant: "#569CD6",  # Blue
+    Token.Keyword.Declaration: "#C586C0",
+    Token.Keyword.Namespace: "#C586C0",
+    Token.Keyword.Reserved: "#C586C0",
+    Token.Keyword.Type: "#569CD6",  # Blue
+
+    # Names - Classes, functions, etc.
+    Token.Name.Class: "#4EC9B0",  # Teal
+    Token.Name.Function: "#DCDCAA",  # Light yellow/gold
+    Token.Name.Builtin: "#4FC1FF",  # Light blue
+    Token.Name.Builtin.Pseudo: "#4FC1FF",
+    Token.Name.Exception: "#4EC9B0",  # Teal
+    Token.Name.Decorator: "#DCDCAA",  # Light yellow/gold
+
+    # Strings - Warm orange
+    Token.Literal.String: "#CE9178",  # Warm orange
+    Token.Literal.String.Doc: "#6A9955",  # Green for docstrings
+    Token.Literal.String.Double: "#CE9178",
+    Token.Literal.String.Single: "#CE9178",
+    Token.Literal.String.Backtick: "#CE9178",
+    Token.Literal.String.Symbol: "#CE9178",
+
+    # Numbers - Light green
+    Token.Literal.Number: "#B5CEA8",  # Light green
+    Token.Literal.Number.Float: "#B5CEA8",
+    Token.Literal.Number.Integer: "#B5CEA8",
+    Token.Literal.Number.Hex: "#B5CEA8",
+
+    # Comments - Green
+    Token.Comment: "#6A9955",  # Green
+    Token.Comment.Single: "#6A9955",
+    Token.Comment.Multiline: "#6A9955",
+
+    # Operators and punctuation
+    Token.Operator: "#D4D4D4",  # Light grey
+    Token.Punctuation: "#D4D4D4",  # Light grey
+
+    # Web-specific
+    Token.Name.Tag: "#569CD6",  # Blue for HTML/XML tags
+    Token.Name.Attribute: "#9CDCFE",  # Light blue for attributes
+
+    # CSS specific
+    Token.Name.Variable: "#9CDCFE",  # Light blue for variables
+    Token.Name.Constant: "#4EC9B0",  # Teal for constants
+
+    # Additional highlights for completeness
+    Token.Name.Entity: "#DCDCAA",  # Light yellow for entities
+    Token.Name.Label: "#C586C0",  # Pink for labels
+    Token.Name.Namespace: "#4EC9B0",  # Teal for namespaces
+    Token.Name.Property: "#9CDCFE",  # Light blue for properties
+
+    # Literals
+    Token.Literal: "#CE9178",  # Orange
+    Token.Literal.Date: "#CE9178",  # Orange
+
+    # Language specific highlights
+    Token.Name.Variable.Class: "#9CDCFE",  # Light blue
+    Token.Name.Variable.Global: "#9CDCFE",  # Light blue
+    Token.Name.Variable.Instance: "#9CDCFE",  # Light blue
+
+    # Error highlighting
+    Token.Error: "#F14C4C",  # Red
+    Token.Generic.Error: "#F14C4C",  # Red
+}
 
 # Add a global variable to track the current file path
 current_file_path = None
@@ -145,6 +218,7 @@ def on_tree_double_click(event) -> None:
         code_area.insert("0.0", content)
         language_var.set(check_file_type(path))
         status_var.set(f"Opened: {os.path.basename(path)}")
+        highlight_syntax(language_var.get())
 
 
 def open_project(path: str) -> None:
@@ -183,10 +257,15 @@ def save_file(event=None) -> None:
     content: str = get_code_area_content()
 
     if current_file_path:
-        with open(current_file_path, "w") as file:
+        # Save to existing file path
+        with open(current_file_path, "w", encoding="utf-8") as file:
             file.write(content)
         status_var.set(f"Saved: {os.path.basename(current_file_path)}")
+
+        # Refresh syntax highlighting
+        highlight_syntax(check_file_type(current_file_path))
     else:
+        # No path exists, call save_file_as
         save_file_as()
 
 
@@ -194,16 +273,24 @@ def save_file_as(event=None) -> None:
     global current_file_path
     content: str = get_code_area_content()
     filepath = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=file_types)
+
     if filepath:
-        current_file_path = filepath
-        with open(filepath, "w") as file:
+        with open(filepath, "w", encoding="utf-8") as file:
             file.write(content)
-        status_var.set(f"Saved: {os.path.basename(filepath)}")
+        current_file_path = filepath
         language_var.set(check_file_type(filepath))
+        status_var.set(f"Saved: {os.path.basename(filepath)}")
+
+        # Apply syntax highlighting for the newly saved file
+        highlight_syntax(check_file_type(filepath))
 
 
 def change_appearance_mode(mode: str = "Dark") -> None:
     customtkinter.set_appearance_mode(mode)
+
+    # Re-apply syntax highlighting if we're viewing a code file
+    if language_var.get() != "Text File":
+        highlight_syntax(language_var.get())
 
 
 def about_codeX(event=None) -> None:
@@ -367,14 +454,120 @@ def zoom_in_text(event=None) -> None:
 
 def zoom_out_text(event=None) -> None:
     global font_size
-    font_size = max(8, font_size - 2)
+    font_size = max(8, font_size - 2)  # Prevent font from becoming too small
     code_area.configure(font=("Consolas", font_size))
+
+    # Reapply syntax highlighting after zoom
+    if language_var.get() != "Text File":
+        highlight_syntax(language_var.get())
 
 
 def reset_zoom_text(event=None) -> None:
     global font_size
     font_size = 13
     code_area.configure(font=("Consolas", font_size))
+
+    # Reapply syntax highlighting after zoom
+    if language_var.get() != "Text File":
+        highlight_syntax(language_var.get())
+
+
+# -------------------- Syntax Highlighting Functions --------------------
+def get_lexer_for_language(language: str):
+    """Get the appropriate lexer for a given language"""
+    language_map = {
+        "Python": "python",
+        "HTML": "html",
+        "CSS": "css",
+        "JavaScript": "javascript",
+        "JSON": "json",
+        "XML": "xml",
+        "C": "c",
+        "C++": "cpp",
+        "Java": "java",
+        "PHP": "php",
+        "Ruby": "ruby",
+        "SQL": "sql",
+        "YAML": "yaml",
+        "Markdown": "markdown",
+    }
+
+    lexer_name = language_map.get(language)
+    if lexer_name:
+        try:
+            return get_lexer_by_name(lexer_name)
+        except:
+            pass
+
+    # Default to no highlighting for unsupported languages
+    return None
+
+
+def highlight_syntax(language: str) -> None:
+    """Apply syntax highlighting to the code area based on the language"""
+    # Clear existing tags
+    for tag in code_area._textbox.tag_names():
+        code_area._textbox.tag_delete(tag)
+
+    if language == "Text File":
+        return  # No highlighting for plain text files
+
+    # Get appropriate lexer for the language
+    lexer = get_lexer_for_language(language)
+    if not lexer:
+        # Try to guess lexer if specific language mapping not found
+        try:
+            content = code_area.get("0.0", "end-1c")
+            if content.strip():
+                lexer = guess_lexer(content)
+            else:
+                return  # Empty content, nothing to highlight
+        except:
+            return  # Cannot guess lexer, no highlighting
+
+    # Get current content
+    content = code_area.get("0.0", "end-1c")
+
+    # Create tags for token types
+    for token_type, color in SYNTAX_COLORS.items():
+        code_area._textbox.tag_configure(str(token_type), foreground=color)
+
+    # Apply syntax highlighting
+    tokens = list(lex(content, lexer))
+
+    # Processing each token
+    pos = 0
+    for token, text in tokens:
+        # Find token positions in the text
+        token_end = pos + len(text)
+
+        # Convert character positions to line.column format
+        start_line = content[:pos].count('\n') + 1
+        start_col = pos - content[:pos].rfind('\n') - 1 if '\n' in content[:pos] else pos
+
+        end_line = content[:token_end].count('\n') + 1
+        end_col = token_end - content[:token_end].rfind('\n') - 1 if '\n' in content[:token_end] else token_end
+
+        start_index = f"{start_line}.{start_col}"
+        end_index = f"{end_line}.{end_col}"
+
+        # Apply color based on token type
+        for token_type, color in SYNTAX_COLORS.items():
+            if token is token_type or token in token_type:
+                code_area._textbox.tag_add(str(token_type), start_index, end_index)
+                break
+
+        pos = token_end
+
+
+def on_key_release(event=None) -> None:
+    """Re-apply syntax highlighting after typing"""
+    if language_var.get() != "Text File":
+        # Only highlight if we're editing a code file
+        # Use a timer to avoid excessive re-highlighting
+        if hasattr(on_key_release, "timer_id"):
+            window.after_cancel(on_key_release.timer_id)
+        on_key_release.timer_id = window.after(500, lambda: highlight_syntax(language_var.get()))
 
 
 # -------------------- UI Setup --------------------
@@ -461,6 +654,9 @@ status_label.pack(side=LEFT, padx=10)
 
 status_file_label: CTkLabel = CTkLabel(status_bar, textvariable=language_var, anchor="w")
 status_file_label.pack(side=RIGHT, padx=10)
+
+# Bind key release event for real-time syntax highlighting
+code_area.bind("<KeyRelease>", on_key_release)
 
 # Keyboard shortcuts
 window.bind("<Control-plus>", zoom_in_text)
