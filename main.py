@@ -1,8 +1,6 @@
 import os
 import tkinter.ttk as ttk
-from tkinter import filedialog, Y, Text, END
-from typing import Final
-import re
+from tkinter import filedialog, Y
 
 import customtkinter
 from CTkMenuBar import CTkMenuBar, CustomDropdownMenu
@@ -23,82 +21,13 @@ from customtkinter import (
 )
 from pygments import lex
 from pygments.lexers import get_lexer_by_name, guess_lexer
-from pygments.token import Token
 
 from utils.keymap import *
 from utils.config import *
-from utils import file_types, check_file_type, create_project_files, CHANGELOG
-
-SYNTAX_COLORS = {
-    # Keywords - Pink/Purple
-    Token.Keyword: "#C586C0",  # Pink/Purple
-    Token.Keyword.Constant: "#569CD6",  # Blue
-    Token.Keyword.Declaration: "#C586C0",
-    Token.Keyword.Namespace: "#C586C0",
-    Token.Keyword.Reserved: "#C586C0",
-    Token.Keyword.Type: "#569CD6",  # Blue
-
-    # Names - Classes, functions, etc.
-    Token.Name.Class: "#4EC9B0",  # Teal
-    Token.Name.Function: "#DCDCAA",  # Light yellow/gold
-    Token.Name.Builtin: "#4FC1FF",  # Light blue
-    Token.Name.Builtin.Pseudo: "#4FC1FF",
-    Token.Name.Exception: "#4EC9B0",  # Teal
-    Token.Name.Decorator: "#DCDCAA",  # Light yellow/gold
-
-    # Strings - Warm orange
-    Token.Literal.String: "#CE9178",  # Warm orange
-    Token.Literal.String.Doc: "#6A9955",  # Green for docstrings
-    Token.Literal.String.Double: "#CE9178",
-    Token.Literal.String.Single: "#CE9178",
-    Token.Literal.String.Backtick: "#CE9178",
-    Token.Literal.String.Symbol: "#CE9178",
-
-    # Numbers - Light green
-    Token.Literal.Number: "#B5CEA8",  # Light green
-    Token.Literal.Number.Float: "#B5CEA8",
-    Token.Literal.Number.Integer: "#B5CEA8",
-    Token.Literal.Number.Hex: "#B5CEA8",
-
-    # Comments - Green
-    Token.Comment: "#6A9955",  # Green
-    Token.Comment.Single: "#6A9955",
-    Token.Comment.Multiline: "#6A9955",
-
-    # Operators and punctuation
-    Token.Operator: "#D4D4D4",  # Light grey
-    Token.Punctuation: "#D4D4D4",  # Light grey
-
-    # Web-specific
-    Token.Name.Tag: "#569CD6",  # Blue for HTML/XML tags
-    Token.Name.Attribute: "#9CDCFE",  # Light blue for attributes
-
-    # CSS specific
-    Token.Name.Variable: "#9CDCFE",  # Light blue for variables
-    Token.Name.Constant: "#4EC9B0",  # Teal for constants
-
-    # Additional highlights for completeness
-    Token.Name.Entity: "#DCDCAA",  # Light yellow for entities
-    Token.Name.Label: "#C586C0",  # Pink for labels
-    Token.Name.Namespace: "#4EC9B0",  # Teal for namespaces
-    Token.Name.Property: "#9CDCFE",  # Light blue for properties
-
-    # Literals
-    Token.Literal: "#CE9178",  # Orange
-    Token.Literal.Date: "#CE9178",  # Orange
-
-    # Language specific highlights
-    Token.Name.Variable.Class: "#9CDCFE",  # Light blue
-    Token.Name.Variable.Global: "#9CDCFE",  # Light blue
-    Token.Name.Variable.Instance: "#9CDCFE",  # Light blue
-
-    # Error highlighting
-    Token.Error: "#F14C4C",  # Red
-    Token.Generic.Error: "#F14C4C",  # Red
-}
+from utils import file_types, check_file_type, create_project_files, CHANGELOG, SYNTAX_COLORS, get_lexer_for_language
 
 # Add a global variable to track the current file path
-current_file_path = None
+current_file_path: str | None = None
 
 
 def clear_code_area() -> None:
@@ -473,36 +402,6 @@ def reset_zoom_text(event=None) -> None:
 
 
 # -------------------- Syntax Highlighting Functions --------------------
-def get_lexer_for_language(language: str):
-    """Get the appropriate lexer for a given language"""
-    language_map = {
-        "Python": "python",
-        "HTML": "html",
-        "CSS": "css",
-        "JavaScript": "javascript",
-        "JSON": "json",
-        "XML": "xml",
-        "C": "c",
-        "C++": "cpp",
-        "Java": "java",
-        "PHP": "php",
-        "Ruby": "ruby",
-        "SQL": "sql",
-        "YAML": "yaml",
-        "Markdown": "markdown",
-    }
-
-    lexer_name = language_map.get(language)
-    if lexer_name:
-        try:
-            return get_lexer_by_name(lexer_name)
-        except:
-            pass
-
-    # Default to no highlighting for unsupported languages
-    return None
-
-
 def highlight_syntax(language: str) -> None:
     """Apply syntax highlighting to the code area based on the language"""
     # Clear existing tags
