@@ -20,7 +20,7 @@ from customtkinter import (
     CTkToplevel, CTkRadioButton, CTkEntry
 )
 from pygments import lex
-from pygments.lexers import get_lexer_by_name, guess_lexer
+from pygments.lexers import guess_lexer
 
 from utils.keymap import *
 from utils.config import *
@@ -541,7 +541,7 @@ tree.bind("<<TreeviewOpen>>", on_tree_expand)
 tree.bind("<Double-1>", on_tree_double_click)
 
 # Add code area to main content
-code_area: CTkTextbox = CTkTextbox(main_content, font=("Consolas", font_size))
+code_area: CTkTextbox = CTkTextbox(main_content, font=("JetBrains Mono Medium", font_size))
 code_area.pack(fill=BOTH, expand=True)
 
 # Add status bar at the bottom of the window
