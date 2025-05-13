@@ -1,7 +1,7 @@
 import os
 import tkinter.ttk as ttk
 from tkinter import filedialog, Y
-
+from typing import Dict, List, Tuple
 import customtkinter
 from CTkMenuBar import CTkMenuBar, CustomDropdownMenu
 from CTkMessagebox import CTkMessagebox
@@ -16,11 +16,11 @@ from customtkinter import (
     BOTTOM,
     X,
     RIGHT,
-    LEFT,
+    LEFT, TOP,
     CTkToplevel, CTkRadioButton, CTkEntry
 )
 from pygments import lex
-from pygments.lexers import get_lexer_by_name, guess_lexer
+from pygments.lexers import guess_lexer
 
 from utils.keymap import *
 from utils.config import *
@@ -29,18 +29,38 @@ from utils import file_types, check_file_type, create_project_files, CHANGELOG, 
 # Add a global variable to track the current file path
 current_file_path: str | None = None
 
+# Add these global variables to track open files
+open_files: List[str] = []  # List of file paths
+active_tab_index: int = -1  # Index of currently active tab
+tab_frame = None  # Will hold the tab frame
+tab_buttons: Dict[str, CTkButton] = {}  # Dictionary to store tab buttons
+
 
 def clear_code_area() -> None:
     code_area.delete("0.0", "end")
 
 
 def create_new_file(event=None) -> None:
-    global current_file_path
+    global current_file_path, active_tab_index, open_files
+
+    # Save current file if needed
+    if current_file_path:
+        save_file()
+
+    # Create new empty file
     current_file_path = None
+    active_tab_index = -1  # No active tab for unsaved file
     language_var.set('Text File')
     clear_code_area()
     status_var.set("Ready!")
     update_line_numbers()
+
+    # Update UI
+    create_tab_ui()
+
+    # If no tabs exist, show the unsaved tab
+    if len(open_files) == 0:
+        show_unsaved_tab()
 
 
 def center_window(win, width=600, height=400) -> None:
@@ -137,19 +157,10 @@ def on_tree_expand(event) -> None:
 
 
 def on_tree_double_click(event) -> None:
-    global current_file_path
     node_id = tree.focus()
     path = tree_paths.get(node_id)
     if os.path.isfile(path):
-        current_file_path = path
-        with open(path, "r") as f:
-            content = f.read()
-        code_area.delete("0.0", "end")
-        code_area.insert("0.0", content)
-        language_var.set(check_file_type(path))
-        status_var.set(f"Opened: {os.path.basename(path)}")
-        highlight_syntax(language_var.get())
-        update_line_numbers()
+        open_file_in_tab(path)
 
 
 def open_project(path: str) -> None:
@@ -161,16 +172,9 @@ def open_project(path: str) -> None:
 
 # -------------------- File Functions --------------------
 def open_file_content(event=None) -> None:
-    global current_file_path
     filename: str = filedialog.askopenfilename()
     if filename:
-        current_file_path = filename
-        language_var.set(check_file_type(filename))
-        with open(filename, "r") as file:
-            code_area.delete("0.0", "end")
-            code_area.insert("0.0", file.read())
-        status_var.set(f"Opened: {os.path.basename(filename)}")
-        update_line_numbers()
+        open_file_in_tab(filename)
 
 
 def open_folder_as_project(event=None) -> None:
@@ -185,7 +189,7 @@ def get_code_area_content() -> str:
 
 
 def save_file(event=None) -> None:
-    global current_file_path
+    global current_file_path, open_files, active_tab_index
     content: str = get_code_area_content()
 
     if current_file_path:
@@ -196,25 +200,49 @@ def save_file(event=None) -> None:
 
         # Refresh syntax highlighting
         highlight_syntax(check_file_type(current_file_path))
+
+        # If this is a new file that wasn't in our tabs, add it
+        if current_file_path not in open_files:
+            open_files.append(current_file_path)
+            active_tab_index = len(open_files) - 1
+            create_tab_ui()
     else:
         # No path exists, call save_file_as
         save_file_as()
 
 
 def save_file_as(event=None) -> None:
-    global current_file_path
+    global current_file_path, open_files, active_tab_index
     content: str = get_code_area_content()
     filepath = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=file_types)
 
     if filepath:
         with open(filepath, "w", encoding="utf-8") as file:
             file.write(content)
+
+        # Update current file path
+        old_file_path = current_file_path
         current_file_path = filepath
+
+        # Update open files and active tab
+        if old_file_path and old_file_path in open_files:
+            # Replace existing tab
+            index = open_files.index(old_file_path)
+            open_files[index] = filepath
+            active_tab_index = index
+        else:
+            # Add new tab
+            open_files.append(filepath)
+            active_tab_index = len(open_files) - 1
+
         language_var.set(check_file_type(filepath))
         status_var.set(f"Saved: {os.path.basename(filepath)}")
 
         # Apply syntax highlighting for the newly saved file
         highlight_syntax(check_file_type(filepath))
+
+        # Update UI
+        create_tab_ui()
 
 
 def change_appearance_mode(mode: str = "Dark") -> None:
@@ -404,6 +432,178 @@ def reset_zoom_text(event=None) -> None:
         highlight_syntax(language_var.get())
 
 
+# Add these functions after the existing functions but before the UI setup
+def create_tab_ui() -> None:
+    """Create the tab UI at the top of the editor"""
+    global tab_frame
+
+    # Remove existing tab frame if it exists
+    if tab_frame is not None:
+        tab_frame.destroy()
+
+    # Create new tab frame
+    tab_frame = CTkFrame(main_content, height=35)
+    tab_frame.pack(side="top", fill="x", before=editor_frame)
+
+    # Create tabs for each open file
+    for i, file_path in enumerate(open_files):
+        create_tab(file_path, i)
+
+
+def create_tab(file_path: str, index: int) -> None:
+    """Create a tab for a file"""
+    global tab_buttons
+
+    # Get file name from path
+    file_name = os.path.basename(file_path)
+
+    # Create button for tab
+    is_active = (index == active_tab_index)
+    fg_color = "gray30" if is_active else "transparent"
+    text_color = "white" if is_active else "gray70"
+
+    tab = CTkButton(
+        tab_frame,
+        text=file_name,
+        fg_color=fg_color,
+        text_color=text_color,
+        corner_radius=0,
+        height=35,
+        border_spacing=10,
+        command=lambda: switch_to_tab(index)
+    )
+    tab.pack(side="left", padx=(0, 1))
+
+    # Add close button to tab
+    close_button = CTkButton(
+        tab,
+        text="×",
+        width=20,
+        fg_color="transparent",
+        hover_color="gray40",
+        command=lambda: close_tab(index),
+        corner_radius=0
+    )
+    close_button.place(relx=1.0, rely=0.5, anchor="e", x=-5)
+
+    # Store tab button reference
+    tab_buttons[file_path] = tab
+
+
+def open_file_in_tab(file_path: str) -> None:
+    """Open a file in a new tab or switch to it if already open"""
+    global current_file_path, active_tab_index, open_files
+
+    # Check if file is already open
+    if file_path in open_files:
+        # Switch to existing tab
+        active_tab_index = open_files.index(file_path)
+    else:
+        # Add to open files
+        open_files.append(file_path)
+        active_tab_index = len(open_files) - 1
+
+    # Update UI
+    create_tab_ui()
+
+    # Load file content
+    current_file_path = file_path
+    with open(file_path, "r") as f:
+        content = f.read()
+    code_area.delete("0.0", "end")
+    code_area.insert("0.0", content)
+    language_var.set(check_file_type(file_path))
+    status_var.set(f"Opened: {os.path.basename(file_path)}")
+    highlight_syntax(language_var.get())
+    update_line_numbers()
+
+
+def switch_to_tab(index: int) -> None:
+    """Switch to a specific tab"""
+    global current_file_path, active_tab_index
+
+    if 0 <= index < len(open_files):
+        # Save current file first
+        if current_file_path and current_file_path in open_files:
+            save_file()
+
+        # Update active tab
+        active_tab_index = index
+        current_file_path = open_files[index]
+
+        # Load file content
+        with open(current_file_path, "r") as f:
+            content = f.read()
+        code_area.delete("0.0", "end")
+        code_area.insert("0.0", content)
+        language_var.set(check_file_type(current_file_path))
+        status_var.set(f"Switched to: {os.path.basename(current_file_path)}")
+        highlight_syntax(language_var.get())
+        update_line_numbers()
+
+        # Update UI
+        create_tab_ui()
+
+
+def close_tab(index: int) -> None:
+    """Close a specific tab"""
+    global current_file_path, active_tab_index, open_files
+
+    if 0 <= index < len(open_files):
+        # Get file to close
+        file_to_close = open_files[index]
+
+        # Remove from open files
+        open_files.pop(index)
+
+        # Clean up button reference
+        if file_to_close in tab_buttons:
+            del tab_buttons[file_to_close]
+
+        # Update active tab
+        if len(open_files) == 0:
+            # No files left, create new empty file
+            active_tab_index = -1
+            current_file_path = None
+            clear_code_area()
+            language_var.set('Text File')
+            status_var.set("Ready!")
+        else:
+            # Switch to another tab
+            if active_tab_index >= index:
+                active_tab_index = max(0, active_tab_index - 1)
+            current_file_path = open_files[active_tab_index]
+            # Load content of new active tab
+            with open(current_file_path, "r") as f:
+                content = f.read()
+            code_area.delete("0.0", "end")
+            code_area.insert("0.0", content)
+            language_var.set(check_file_type(current_file_path))
+            status_var.set(f"Switched to: {os.path.basename(current_file_path)}")
+            highlight_syntax(language_var.get())
+
+        # Update UI
+        create_tab_ui()
+        update_line_numbers()
+
+
+def show_unsaved_tab() -> None:
+    """Show a tab for an unsaved file"""
+    global tab_frame
+
+    # Create a special tab for unsaved file
+    tab = CTkButton(
+        tab_frame,
+        text="Untitled",
+        fg_color="gray30",
+        text_color="white",
+        corner_radius=0,
+        height=35,
+        border_spacing=10
+    )
+    tab.pack(side="left", padx=(0, 1))
+
+
 # -------------------- Syntax Highlighting Functions --------------------
 def highlight_syntax(language: str) -> None:
     """Apply syntax highlighting to the code area based on the language"""
@@ -578,26 +778,38 @@ sidebar_visible = True
 
 view_dropdown.add_option(option="Toggle Sidebar", command=toggle_sidebar)
 
+# Add tab UI to View menu
+view_dropdown.add_separator()
+view_dropdown.add_option(option="Close Current Tab",
+                         command=lambda: close_tab(active_tab_index) if active_tab_index >= 0 else None)
+view_dropdown.add_option(option="Close All Tabs", command=lambda: [close_tab(0) for _ in range(len(open_files))])
+
 sidebar_frame = CTkFrame(content_frame, width=250)
 sidebar_frame.pack(side=LEFT, fill=Y)
 
 main_content = CTkFrame(content_frame)
 main_content.pack(side=RIGHT, fill=BOTH, expand=True)
 
+tab_frame = CTkFrame(main_content, height=35)
+tab_frame.pack(side="top", fill="x")
+
 # Add tree to sidebar
 tree = ttk.Treeview(sidebar_frame, show="tree")
 tree.pack(fill=BOTH, expand=True)
 
+editor_frame = CTkFrame(main_content)
+editor_frame.pack(side="top", fill=BOTH, expand=True)
+
 tree.bind("<<TreeviewOpen>>", on_tree_expand)
 tree.bind("<Double-1>", on_tree_double_click)
 
-line_numbers = customtkinter.CTkTextbox(main_content, width=50)
+line_numbers = customtkinter.CTkTextbox(editor_frame, width=50)
 line_numbers.configure(state="disabled")  # Prevent editing
-line_numbers.configure(yscrollcommand=lambda *args: None)  # 🔥 Hides scrollbar
+line_numbers.configure(yscrollcommand=lambda *args: None)  # Hides scrollbar
 line_numbers.pack(side=LEFT, fill=Y)
 
 # Add code area to main content
-code_area: CTkTextbox = CTkTextbox(main_content, font=("Consolas", font_size))
+code_area: CTkTextbox = CTkTextbox(editor_frame, font=("Consolas", font_size))
 code_area.pack(fill=BOTH, expand=True)
 
 # Add status bar at the bottom of the window
@@ -635,5 +847,12 @@ window.bind("<Control-k>", keymap)
 
 window.bind("<F1>", about_codeX)
 window.bind("<F2>", whats_new_dialog)
+
+window.bind("<Control-Tab>", lambda e: switch_to_tab((active_tab_index + 1) % max(1, len(open_files))))
+window.bind("<Control-Shift-Tab>", lambda e: switch_to_tab((active_tab_index - 1) % max(1, len(open_files))))
+window.bind("<Control-w>", lambda e: close_tab(active_tab_index) if active_tab_index >= 0 else None)
+
+# Create the tab UI once on startup
+create_tab_ui()
 
 window.mainloop()
