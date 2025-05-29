@@ -9,6 +9,7 @@ class SyntaxHighlighter(QSyntaxHighlighter):
         self.language = language.lower()
         self.highlighting_rules = []
         self.setup_highlighting_rules()
+        self.setup_function_highlighting(language)
 
     def setup_highlighting_rules(self):
         # Define formats
@@ -56,6 +57,21 @@ class SyntaxHighlighter(QSyntaxHighlighter):
         # Add function rules
         if self.language in ['python', 'javascript', 'php']:
             self.highlighting_rules.append((re.compile(r'\b\w+(?=\()'), function_format))
+
+    def setup_function_highlighting(self, language):
+        """Setup function highlighting with different color"""
+        from keywords import get_functions
+        functions_list = get_functions(language)
+
+        # Create function highlighting format (e.g., blue color)
+        function_format = QTextCharFormat()
+        function_format.setForeground(QColor(0, 100, 200))  # Blue color
+        function_format.setFontWeight(QFont.Weight.Bold)
+
+        # Add function patterns
+        for function in functions_list:
+            pattern = rf'\b{re.escape(function)}\b'
+            self.highlighting_rules.append((re.compile(pattern), function_format))
 
     def highlightBlock(self, text):
         for pattern, format in self.highlighting_rules:
