@@ -5,7 +5,7 @@ from datetime import datetime
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QKeySequence, QIcon
 from PySide6.QtWidgets import QDialog, QMessageBox, QFileDialog, QDialogButtonBox, QPushButton, QLineEdit, QHBoxLayout, \
-    QLabel, QVBoxLayout, QWidget, QTabWidget, QTreeWidgetItem, QMainWindow, QSplitter, QTreeWidget, QStatusBar
+    QLabel, QVBoxLayout, QWidget, QTabWidget, QTreeWidgetItem, QMainWindow, QSplitter, QTreeWidget, QStatusBar, QStyle
 
 from code_editor_with_line_numbers import CodeEditorWithLineNumbers
 from interpreter_dialog import InterpreterDialog
@@ -24,6 +24,7 @@ class MultiLanguageIDE(QMainWindow):
         self.setup_ui()
         self.setup_menu()
         self.load_settings()
+        self.setup_icons()
 
     def setup_ui(self):
         self.setWindowTitle("CodeX Text Editor")
@@ -202,8 +203,12 @@ class MultiLanguageIDE(QMainWindow):
             project_data = dialog.get_project_data()
 
             try:
-                # Create project directory
-                os.makedirs(project_data['path'], exist_ok=True)
+                # Create project directory with the project name
+                project_path = os.path.join(project_data['path'], project_data['name'])
+                os.makedirs(project_path, exist_ok=True)
+
+                # Update project_data path to include the project name folder
+                project_data['path'] = project_path
 
                 # Create project structure based on type
                 if project_data['type'] == "Python Application":
@@ -458,9 +463,10 @@ WHERE username = 'john_doe';
         root_item = QTreeWidgetItem(self.project_tree)
         root_item.setText(0, os.path.basename(root_path))
         root_item.setData(0, Qt.UserRole, root_path)
+        root_item.setIcon(0, self.file_icons['folder'])  # Add this line
 
         self.add_tree_items(root_item, root_path)
-        self.project_tree.expandAll()
+        # self.project_tree.expandAll()
 
     def add_tree_items(self, parent_item, path, depth=0, max_depth=3):
         try:
@@ -473,14 +479,42 @@ WHERE username = 'john_doe';
                               if not item.startswith('.')
                               and item not in ['__pycache__', 'node_modules', '.git']]
 
-            for item in sorted(filtered_items):
-                item_path = os.path.join(path, item)
-                tree_item = QTreeWidgetItem(parent_item)
-                tree_item.setText(0, item)
-                tree_item.setData(0, Qt.UserRole, item_path)
+            # Separate folders and files, then sort each group
+            folders = []
+            files = []
 
+            for item in filtered_items:
+                item_path = os.path.join(path, item)
                 if os.path.isdir(item_path):
-                    self.add_tree_items(tree_item, item_path, depth + 1, max_depth)
+                    folders.append(item)
+                else:
+                    files.append(item)
+
+            # Sort folders and files separately
+            folders.sort(key=str.lower)
+            files.sort(key=str.lower)
+
+            # Add folders first
+            for folder in folders:
+                folder_path = os.path.join(path, folder)
+                tree_item = QTreeWidgetItem(parent_item)
+                tree_item.setText(0, folder)
+                tree_item.setData(0, Qt.UserRole, folder_path)
+                tree_item.setIcon(0, self.file_icons['folder'])
+                self.add_tree_items(tree_item, folder_path, depth + 1, max_depth)
+
+            # Then add files
+            for file in files:
+                file_path = os.path.join(path, file)
+                tree_item = QTreeWidgetItem(parent_item)
+                tree_item.setText(0, file)
+                tree_item.setData(0, Qt.UserRole, file_path)
+
+                # Set icon based on file extension
+                file_ext = os.path.splitext(file)[1].lower()
+                icon = self.file_icons.get(file_ext, self.file_icons['default'])
+                tree_item.setIcon(0, icon)
+
         except (PermissionError, OSError):
             pass
 
@@ -916,6 +950,51 @@ WHERE username = 'john_doe';
                     self.sql_connection_params = config.get('sql_connection_params', None)
         except Exception:
             pass
+
+    def setup_icons(self):
+        """Setup icons for file types"""
+        from PySide6.QtWidgets import QStyle
+        from PySide6.QtGui import QPixmap
+
+        # Create icons directory path
+        icons_dir = os.path.join(os.path.dirname(__file__), 'icons')
+
+        self.file_icons = {
+            # Folder icon
+            'folder': self.style().standardIcon(QStyle.StandardPixmap.SP_DirIcon),
+            'default': self.style().standardIcon(QStyle.StandardPixmap.SP_FileIcon)
+        }
+
+        # File type icon mappings
+        icon_mappings = {
+            '.py': 'python.png',
+            '.js': 'js.png',
+            '.html': 'html.png',
+            '.css': 'css.png',
+            '.php': 'php.png',
+            '.sql': 'sql.png',
+            '.md': 'markdown.png',
+            '.txt': 'txt.png',
+            '.json': 'json.png',
+            '.ts': 'ts.png',
+        }
+
+        # Load custom icons if they exist, otherwise use default
+        for ext, icon_file in icon_mappings.items():
+            icon_path = os.path.join(icons_dir, icon_file)
+            if os.path.exists(icon_path):
+                try:
+                    pixmap = QPixmap(icon_path)
+                    if not pixmap.isNull():
+                        # Scale icon to appropriate size (16x16)
+                        scaled_pixmap = pixmap.scaled(16, 16, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                        self.file_icons[ext] = QIcon(scaled_pixmap)
+                    else:
+                        self.file_icons[ext] = self.file_icons['default']
+                except Exception:
+                    self.file_icons[ext] = self.file_icons['default']
+            else:
+                self.file_icons[ext] = self.file_icons['default']
 
     def save_settings(self):
         """Save interpreter and SQL connection settings to a config file"""
