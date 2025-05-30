@@ -12,7 +12,7 @@ from interpreter_dialog import InterpreterDialog
 from new_project_dialog import NewProjectDialog
 from output import OutputWidget
 from sql_connection_dialog import SQLConnectionDialog
-
+from PySide6.QtCore import QProcess, QTimer
 
 class MultiLanguageIDE(QMainWindow):
     def __init__(self):
@@ -20,11 +20,64 @@ class MultiLanguageIDE(QMainWindow):
         self.current_project_path = None
         self.open_files = {}  # filename -> editor widget
         self.interpreters = {}  # language -> interpreter path
-        self.sql_connection_params = None  # Add this line
+        self.sql_connection_params = None
         self.setup_ui()
         self.setup_menu()
         self.load_settings()
         self.setup_icons()
+
+        self.current_process = None
+        self.process_timer = QTimer()
+        self.process_timer.timeout.connect(self.update_process_status)
+
+    def handle_stdout(self):
+        """Handle standard output from the running process"""
+        if self.current_process:
+            data = self.current_process.readAllStandardOutput().data().decode('utf-8', errors='replace')
+            if data:
+                self.output_widget.append_output(data.rstrip())
+
+    def handle_stderr(self):
+        """Handle standard error from the running process"""
+        if self.current_process:
+            data = self.current_process.readAllStandardError().data().decode('utf-8', errors='replace')
+            if data:
+                self.output_widget.append_output(f"ERROR: {data.rstrip()}")
+
+    def handle_process_started(self):
+        """Handle process start"""
+        self.status_bar.showMessage("Process running... (Press Ctrl+C to stop)", 0)
+
+    def handle_process_finished(self, exit_code, exit_status):
+        """Handle process completion"""
+        self.process_timer.stop()
+
+        self.output_widget.append_output("-" * 50)
+
+        if exit_status == QProcess.NormalExit:
+            self.output_widget.append_output(f"Process finished with exit code: {exit_code}")
+            if exit_code == 0:
+                self.status_bar.showMessage("Execution completed successfully", 3000)
+            else:
+                self.status_bar.showMessage(f"Execution finished with errors (code: {exit_code})", 5000)
+        else:
+            self.output_widget.append_output("Process was terminated or crashed")
+            self.status_bar.showMessage("Process was terminated", 3000)
+
+        self.current_process = None
+
+    def update_process_status(self):
+        """Update status bar with process information"""
+        if self.current_process and self.current_process.state() == QProcess.Running:
+            self.status_bar.showMessage("Process running... (Press Ctrl+C to stop)", 0)
+
+    def stop_current_process(self):
+        """Stop the currently running process"""
+        if self.current_process and self.current_process.state() != QProcess.NotRunning:
+            self.current_process.kill()
+            self.current_process.waitForFinished(3000)
+            self.output_widget.append_output("\nProcess terminated by user")
+            self.status_bar.showMessage("Process stopped", 2000)
 
     def setup_ui(self):
         self.setWindowTitle("CodeX Text Editor")
@@ -159,15 +212,22 @@ class MultiLanguageIDE(QMainWindow):
         run_action.triggered.connect(self.run_current_file)
         run_menu.addAction(run_action)
 
+        stop_process_action = QAction("Stop Running Process", self)
+        stop_process_action.setShortcut("Ctrl+C")
+        stop_process_action.triggered.connect(self.stop_current_process)
+        run_menu.addAction(stop_process_action)
+
+        run_menu.addSeparator()
+
         configure_interpreters_action = QAction("Configure Interpreters", self)
         configure_interpreters_action.triggered.connect(self.configure_interpreters)
         run_menu.addAction(configure_interpreters_action)
 
+        run_menu.addSeparator()
+
         sql_connection_action = QAction("Configure SQL Connection", self)
         sql_connection_action.triggered.connect(self.configure_sql_connection)
         run_menu.addAction(sql_connection_action)
-
-        run_menu.addSeparator()
 
         edit_sql_connection_action = QAction("Edit SQL Connection", self)
         edit_sql_connection_action.triggered.connect(self.configure_sql_connection)
@@ -668,8 +728,13 @@ WHERE username = 'john_doe';
             self.execute_sql_file(interpreter, file_path, self.sql_connection_params)
 
     def execute_sql_file(self, interpreter, file_path, connection_params):
-        """Execute a SQL file with connection parameters"""
+        """Execute a SQL file with connection parameters using QProcess"""
         try:
+            # Stop any currently running process
+            if self.current_process and self.current_process.state() != QProcess.NotRunning:
+                self.current_process.kill()
+                self.current_process.waitForFinished(3000)
+
             self.output_widget.clear_output()
             self.output_widget.set_title(f"SQL Output - {os.path.basename(file_path)}")
             self.output_widget.append_output(f"Running {file_path}...")
@@ -679,131 +744,111 @@ WHERE username = 'john_doe';
                 self.output_widget.append_output(f"User: {connection_params['username']}")
             self.output_widget.append_output("-" * 50)
 
+            # Create and configure QProcess
+            self.current_process = QProcess(self)
+
             # Build command based on database type
-            cmd = []
+            args = []
+            sql_input = None
 
             if connection_params['type'] == 'MySQL':
-                cmd = [interpreter]
+                self.current_process.setProgram(interpreter)
                 if connection_params['host']:
-                    cmd.extend(['-h', connection_params['host']])
+                    args.extend(['-h', connection_params['host']])
                 if connection_params['port']:
-                    cmd.extend(['-P', connection_params['port']])
+                    args.extend(['-P', connection_params['port']])
                 if connection_params['username']:
-                    cmd.extend(['-u', connection_params['username']])
+                    args.extend(['-u', connection_params['username']])
                 if connection_params['password']:
-                    cmd.extend([f'-p{connection_params["password"]}'])
+                    args.extend([f'-p{connection_params["password"]}'])
                 if connection_params['database']:
-                    cmd.append(connection_params['database'])
+                    args.append(connection_params['database'])
 
-                # Read the SQL file content and pass it as input
-                try:
-                    with open(file_path, 'r', encoding='utf-8') as f:
-                        sql_content = f.read()
-
-                    process = subprocess.Popen(
-                        cmd,
-                        stdin=subprocess.PIPE,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                        text=True,
-                        cwd=os.path.dirname(file_path) if os.path.dirname(file_path) else None
-                    )
-
-                    stdout, stderr = process.communicate(input=sql_content)
-                except Exception as e:
-                    self.output_widget.append_output(f"Error reading SQL file: {str(e)}")
-                    return
+                # Read SQL content to pass as input
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    sql_input = f.read()
 
             elif connection_params['type'] == 'SQLite':
                 sqlite_file = connection_params['sqlite_file'] or ':memory:'
-                cmd = [interpreter, sqlite_file, f'.read {file_path}']
-
-                process = subprocess.Popen(
-                    cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    cwd=os.path.dirname(file_path) if os.path.dirname(file_path) else None
-                )
-                stdout, stderr = process.communicate()
+                self.current_process.setProgram(interpreter)
+                args = [sqlite_file, f'.read {file_path}']
 
             elif connection_params['type'] == 'PostgreSQL':
-                cmd = [interpreter]
+                self.current_process.setProgram(interpreter)
                 if connection_params['host']:
-                    cmd.extend(['-h', connection_params['host']])
+                    args.extend(['-h', connection_params['host']])
                 if connection_params['port']:
-                    cmd.extend(['-p', connection_params['port']])
+                    args.extend(['-p', connection_params['port']])
                 if connection_params['username']:
-                    cmd.extend(['-U', connection_params['username']])
+                    args.extend(['-U', connection_params['username']])
                 if connection_params['database']:
-                    cmd.extend(['-d', connection_params['database']])
-                cmd.extend(['-f', file_path])
+                    args.extend(['-d', connection_params['database']])
+                args.extend(['-f', file_path])
 
-                process = subprocess.Popen(
-                    cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    cwd=os.path.dirname(file_path) if os.path.dirname(file_path) else None
-                )
-                stdout, stderr = process.communicate()
+            self.current_process.setArguments(args)
 
-            if stdout:
-                self.output_widget.append_output("STDOUT:")
-                self.output_widget.append_output(stdout)
+            # Set working directory
+            if os.path.dirname(file_path):
+                self.current_process.setWorkingDirectory(os.path.dirname(file_path))
 
-            if stderr:
-                self.output_widget.append_output("STDERR:")
-                self.output_widget.append_output(stderr)
+            # Connect signals
+            self.current_process.readyReadStandardOutput.connect(self.handle_stdout)
+            self.current_process.readyReadStandardError.connect(self.handle_stderr)
+            self.current_process.finished.connect(self.handle_process_finished)
+            self.current_process.started.connect(self.handle_process_started)
 
-            return_code = process.returncode
-            self.output_widget.append_output("-" * 50)
-            self.output_widget.append_output(f"Process finished with return code: {return_code}")
+            # Start the process
+            self.current_process.start()
 
-            if return_code == 0:
-                self.status_bar.showMessage(f"SQL execution completed successfully", 3000)
-            else:
-                self.status_bar.showMessage(f"SQL execution finished with errors (code: {return_code})", 5000)
+            # If we have SQL input (for MySQL), write it to stdin
+            if sql_input:
+                self.current_process.write(sql_input.encode('utf-8'))
+                self.current_process.closeWriteChannel()
+
+            # Start timer to update status
+            self.process_timer.start(100)
+
+            self.status_bar.showMessage("Starting SQL execution...", 2000)
 
         except Exception as e:
             self.output_widget.append_output(f"Error executing SQL file: {str(e)}")
             self.status_bar.showMessage(f"SQL execution failed: {str(e)}", 5000)
 
     def execute_file(self, interpreter, file_path, language):
-        """Execute a file and capture output"""
+        """Execute a file using QProcess for non-blocking execution"""
         try:
+            # Stop any currently running process
+            if self.current_process and self.current_process.state() != QProcess.NotRunning:
+                self.current_process.kill()
+                self.current_process.waitForFinished(3000)
+
             self.output_widget.clear_output()
             self.output_widget.set_title(f"{language} Output - {os.path.basename(file_path)}")
             self.output_widget.append_output(f"Running {file_path}...")
             self.output_widget.append_output("-" * 50)
 
-            # Execute the file and capture output
-            process = subprocess.Popen(
-                [interpreter, file_path],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                cwd=os.path.dirname(file_path) if os.path.dirname(file_path) else None
-            )
+            # Create and configure QProcess
+            self.current_process = QProcess(self)
+            self.current_process.setProgram(interpreter)
+            self.current_process.setArguments([file_path])
 
-            stdout, stderr = process.communicate()
+            # Set working directory
+            if os.path.dirname(file_path):
+                self.current_process.setWorkingDirectory(os.path.dirname(file_path))
 
-            if stdout:
-                self.output_widget.append_output("STDOUT:")
-                self.output_widget.append_output(stdout)
+            # Connect signals
+            self.current_process.readyReadStandardOutput.connect(self.handle_stdout)
+            self.current_process.readyReadStandardError.connect(self.handle_stderr)
+            self.current_process.finished.connect(self.handle_process_finished)
+            self.current_process.started.connect(self.handle_process_started)
 
-            if stderr:
-                self.output_widget.append_output("STDERR:")
-                self.output_widget.append_output(stderr)
+            # Start the process
+            self.current_process.start()
 
-            return_code = process.returncode
-            self.output_widget.append_output("-" * 50)
-            self.output_widget.append_output(f"Process finished with return code: {return_code}")
+            # Start timer to update status
+            self.process_timer.start(100)  # Update every 100ms
 
-            if return_code == 0:
-                self.status_bar.showMessage(f"Execution completed successfully", 3000)
-            else:
-                self.status_bar.showMessage(f"Execution finished with errors (code: {return_code})", 5000)
+            self.status_bar.showMessage(f"Starting {language} execution...", 2000)
 
         except Exception as e:
             self.output_widget.append_output(f"Error executing file: {str(e)}")
@@ -1010,6 +1055,11 @@ WHERE username = 'john_doe';
             pass
 
     def closeEvent(self, event):
-        """Save settings when closing the application"""
+        """Save settings and stop processes when closing the application"""
+        # Stop any running process before closing
+        if self.current_process and self.current_process.state() != QProcess.NotRunning:
+            self.current_process.kill()
+            self.current_process.waitForFinished(3000)
+
         self.save_settings()
         event.accept()
